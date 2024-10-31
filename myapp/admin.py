@@ -1,5 +1,4 @@
 from django.contrib import admin
-from django.shortcuts import redirect
 from django.urls import path, reverse
 from django.utils.html import format_html
 from .models import (
@@ -9,6 +8,7 @@ from .models import (
     Course,
     Enrollment,
     Classroom,
+    LargeClassroom,
     CustomUser,
 )
 from django.contrib.auth.admin import UserAdmin
@@ -197,6 +197,14 @@ class ClassroomAdmin(admin.ModelAdmin):
             '<a class="button" href="{}" style="color:red;">Delete Classroom</a>', url
         )
 
+class LargeClassroomAdmin(admin.ModelAdmin):
+    list_display = ('room_number', 'capacity', 'department')
+    
+    def get_queryset(self, request):
+        # Filter classrooms where capacity is greater than 50
+        queryset = super().get_queryset(request)
+        return queryset.filter(capacity__gt=50)
+
 
 # Register the models with the custom admin classes
 admin.site.register(CustomUser, CustomUserAdmin)
@@ -206,3 +214,4 @@ admin.site.register(Student, StudentAdmin)
 admin.site.register(Course, CourseAdmin)
 admin.site.register(Enrollment, EnrollmentAdmin)
 admin.site.register(Classroom, ClassroomAdmin)
+admin.site.register(LargeClassroom, LargeClassroomAdmin)

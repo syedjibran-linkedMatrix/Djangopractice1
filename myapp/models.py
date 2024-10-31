@@ -1,9 +1,9 @@
-from datetime import timezone
 import re
 from django.contrib.auth.models import AbstractUser, BaseUserManager
 from django.core.exceptions import ValidationError
 from django.core.validators import MaxLengthValidator, MinValueValidator
 from django.db import models
+from django.utils import timezone
 
 
 class PhoneNumberField(models.CharField):
@@ -12,7 +12,6 @@ class PhoneNumberField(models.CharField):
         super().__init__(*args, **kwargs)
 
     def validate(self, value, model_instance):
-        """Custom validation to ensure the phone number follows the required format."""
         super().validate(value, model_instance)
         pattern = r"^\+92-\d{9}-\d{1}$"
         if not re.match(pattern, value):
@@ -32,7 +31,6 @@ class CustomUserManager(BaseUserManager):
         return user
 
     def create_superuser(self, phone_number, password=None, **extra_fields):
-        """Create and return a superuser with the given phone number and password."""
         extra_fields.setdefault("is_staff", True)
         extra_fields.setdefault("is_superuser", True)
 
@@ -45,17 +43,12 @@ class CustomUserManager(BaseUserManager):
 
 
 class CustomUser(AbstractUser):
-    phone_number = models.CharField(
-        max_length=15, unique=True, validators=[PhoneNumberField]
-    )
+    phone_number = PhoneNumberField(unique=True)
 
     USERNAME_FIELD = "phone_number"
     REQUIRED_FIELDS = []
 
     objects = CustomUserManager()
-
-    def clean(self):
-        super().clean()
 
     def __str__(self):
         return self.phone_number
@@ -74,6 +67,11 @@ class Department(models.Model):
         on_delete=models.SET_NULL,
         null=True,
         related_name="departments",
+        blank=True,
+    )
+    location = models.CharField(
+        max_length=255,
+        null=True,
         blank=True,
     )
 
@@ -133,7 +131,6 @@ class Course(models.Model):
     )
 
     def clean(self):
-        """Custom validation for course code format."""
         if not re.match(r"^[A-Z]{3}\d{3}$", self.code):
             raise ValidationError("Course code must be in the format 'XXX123'.")
 
@@ -158,6 +155,16 @@ class Classroom(models.Model):
         return self.room_number
 
 
+class LargeClassroom(Classroom):
+    class Meta:
+        proxy = True
+        verbose_name = "Large Classroom"
+        verbose_name_plural = "Large Classrooms"
+
+    def is_large(self):
+        return self.capacity > 50
+
+
 class Enrollment(models.Model):
     student = models.ForeignKey(
         Student, on_delete=models.CASCADE, related_name="enrollments"
@@ -172,10 +179,6 @@ class Enrollment(models.Model):
         ordering = ["-enrollment_date", "student"]
         verbose_name = "Enrollment"
         verbose_name_plural = "Enrollments"
-
-    def clean(self):
-        if self.enrollment_date > timezone.now().date():
-            raise ValidationError("Enrollment date cannot be in the future.")
 
     def __str__(self):
         return f"{self.student} enrolled in {self.course}"
